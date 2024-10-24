@@ -18,43 +18,63 @@ on:
 #       #     label-operator: NOT
 #       #     column-name: Todo
 
-  jobs:
-    add-to-project:
-      runs-on: ubuntu-latest
-      steps:
-        - name: Add issue to project Todo column
-          env:
-            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-            ISSUE_ID: ${{ github.event.issue.node_id }}
-          run: |
-            # Get the project ID
-            PROJECT_ID=$(gh api graphql -f query='
-              query($user: String!, $number: Int!) {
-                user(login: $user){
-                  projectV2(number: $number) {
-                    id
+jobs:
+  add-to-project:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Add issue to project Todo column
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_ID: ${{ github.event.issue.node_id }}
+        run: |
+          # Get the project ID
+          PROJECT_ID=$(gh api graphql -f query='
+            query($user: String!, $number: Int!) {
+              user(login: $user){
+                projectV2(number: $number) {
+                  id
+                }
+              }
+            }' -f user="thomast1906" -f number=2 --jq '.data.user.projectV2.id')
+
+          # Add the issue to the project
+          ITEM_ID=$(gh api graphql -f query='
+            mutation($project:ID!, $issue:ID!) {
+              addProjectV2ItemById(input: {projectId: $project, contentId: $issue}) {
+                item {
+                  id
+                }
+              }
+            }' -f project=$PROJECT_ID -f issue=$ISSUE_ID --jq '.data.addProjectV2ItemById.item.id')
+
+          # Get the ID of the Status field
+          STATUS_FIELD_ID=$(gh api graphql -f query='
+            query($project:ID!) {
+              node(id: $project) {
+                ... on ProjectV2 {
+                  fields(first:20) {
+                    nodes {
+                      ... on ProjectV2SingleSelectField {
+                        id
+                        name
+                      }
+                    }
                   }
                 }
-              }' -f user="thomast1906" -f number=2 --jq '.data.user.projectV2.id')
+              }
+            }' -f project=$PROJECT_ID --jq '.data.node.fields.nodes[] | select(.name=="Status") | .id')
 
-            # Add the issue to the project
-            ITEM_ID=$(gh api graphql -f query='
-              mutation($project:ID!, $issue:ID!) {
-                addProjectV2ItemById(input: {projectId: $project, contentId: $issue}) {
-                  item {
-                    id
-                  }
-                }
-              }' -f project=$PROJECT_ID -f issue=$ISSUE_ID --jq '.data.addProjectV2ItemById.item.id')
-
-            # Get the ID of the Status field
-            STATUS_FIELD_ID=$(gh api graphql -f query='
-              query($project:ID!) {
-                node(id: $project) {
-                  ... on ProjectV2 {
-                    fields(first:20) {
-                      nodes {
-                        ... on ProjectV2SingleSelectField {
+          # Get the ID of the Todo option
+          TODO_OPTION_ID=$(gh api graphql -f query='
+            query($project:ID!) {
+              node(id: $project) {
+                ... on ProjectV2 {
+                  fields(first:20) {
+                    nodes {
+                      ... on ProjectV2SingleSelectField {
+                        id
+                        name
+                        options {
                           id
                           name
                         }
@@ -62,42 +82,22 @@ on:
                     }
                   }
                 }
-              }' -f project=$PROJECT_ID --jq '.data.node.fields.nodes[] | select(.name=="Status") | .id')
+              }
+            }' -f project=$PROJECT_ID --jq '.data.node.fields.nodes[] | select(.name=="Status") | .options[] | select(.name=="Todo") | .id')
 
-            # Get the ID of the Todo option
-            TODO_OPTION_ID=$(gh api graphql -f query='
-              query($project:ID!) {
-                node(id: $project) {
-                  ... on ProjectV2 {
-                    fields(first:20) {
-                      nodes {
-                        ... on ProjectV2SingleSelectField {
-                          id
-                          name
-                          options {
-                            id
-                            name
-                          }
-                        }
-                      }
-                    }
-                  }
+          # Set the Status to Todo
+          gh api graphql -f query='
+            mutation($project:ID!, $item:ID!, $field:ID!, $value:String!) {
+              updateProjectV2ItemFieldValue(input: {
+                projectId: $project
+                itemId: $item
+                fieldId: $field
+                value: { 
+                  singleSelectOptionId: $value
                 }
-              }' -f project=$PROJECT_ID --jq '.data.node.fields.nodes[] | select(.name=="Status") | .options[] | select(.name=="Todo") | .id')
-
-            # Set the Status to Todo
-            gh api graphql -f query='
-              mutation($project:ID!, $item:ID!, $field:ID!, $value:String!) {
-                updateProjectV2ItemFieldValue(input: {
-                  projectId: $project
-                  itemId: $item
-                  fieldId: $field
-                  value: { 
-                    singleSelectOptionId: $value
-                  }
-                }) {
-                  projectV2Item {
-                    id
-                  }
+              }) {
+                projectV2Item {
+                  id
                 }
-              }' -f project=$PROJECT_ID -f item=$ITEM_ID -f field=$STATUS_FIELD_ID -f value=$TODO_OPTION_ID
+              }
+            }' -f project=$PROJECT_ID -f item=$ITEM_ID -f field=$STATUS_FIELD_ID -f value=$TODO_OPTION_ID
