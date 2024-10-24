@@ -16,3 +16,4 @@ jobs:
           github-token: ${{ secrets.PAT_TOKEN }}
           labeled: bug, needs-triage
           label-operator: NOT
+          column-name: Todo
