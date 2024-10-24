@@ -16,13 +16,13 @@ jobs:
         run: |
           # Get the project ID
           PROJECT_ID=$(gh api graphql -f query='
-            query($user: String!, $projectNumber: Int!) {
+            query($user: String!, $projectNumber: String!) {
               user(login: $user) {
                 projectV2(number: $projectNumber) {
                   id
                 }
               }
-            }' -f user="thomast1906" -f projectNumber=2 --jq '.data.user.projectV2.id')
+            }' -f user="thomast1906" -f projectNumber="2" --jq '.data.user.projectV2.id')
 
           # Add the issue to the project
           ITEM_ID=$(gh api graphql -f query='
