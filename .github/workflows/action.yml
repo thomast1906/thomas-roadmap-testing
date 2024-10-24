@@ -22,4 +22,6 @@ jobs:
                   id
                 }
               }
-            }' -f user="thomast1906" -f projectNumber=2 --jq '.data.user.projectV2.id')
+            }' -F user="thomast1906" -F projectNumber=2 --jq '.data.user.projectV2.id')
+
+          echo "Project ID: $PROJECT_ID"
