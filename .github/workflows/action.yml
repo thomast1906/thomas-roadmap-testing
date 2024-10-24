@@ -1,22 +1,9 @@
-name: Adds all issues that don't include the 'bug' or 'needs-triage' labels to project board
+name: Add Issue to Project Todo Column
 
 on:
   issues:
     types:
       - opened
-
-# jobs:
-#   add-to-project:
-#     name: Add issue to project
-#     runs-on: ubuntu-latest
-#     steps:
-#       # - uses: actions/add-to-project@v1.0.2
-#       #   with:
-#       #     project-url: https://github.com/users/thomast1906/projects/2
-#       #     github-token: ${{ secrets.PAT_TOKEN }}
-#       #     labeled: bug, needs-triage
-#       #     label-operator: NOT
-#       #     column-name: Todo
 
 jobs:
   add-to-project:
@@ -29,13 +16,13 @@ jobs:
         run: |
           # Get the project ID
           PROJECT_ID=$(gh api graphql -f query='
-            query($user: String!, $number: Int!) {
-              user(login: $user){
-                projectV2(number: $number) {
+            query($user: String!, $projectNumber: Int!) {
+              user(login: $user) {
+                projectV2(number: $projectNumber) {
                   id
                 }
               }
-            }' -f user="thomast1906" -f number=2 --jq '.data.user.projectV2.id')
+            }' -f user="thomast1906" -f projectNumber=2 --jq '.data.user.projectV2.id')
 
           # Add the issue to the project
           ITEM_ID=$(gh api graphql -f query='
